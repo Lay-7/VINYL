@@ -145,7 +145,7 @@ $('#addb').innerHTML=ic(  'plus',20)+'Cargar archivos de música';
 let tracks=[],lists=[],view='all',queue=[],qi=-1,shuffle=false,repeat=0,db;const urls={};
 const open=()=>new Promise((res,rej)=>{const r=indexedDB.open('vinylplayer',2);r.onupgradeneeded=()=>{const d=r.result;['tracks','lists'].forEach(n=>d.objectStoreNames.contains(n)||d.createObjectStore(n,{keyPath:'id',autoIncrement:true}));d.objectStoreNames.contains('albums')||d.createObjectStore('albums',{keyPath:'name'})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const all=s=>new Promise(r=>{const q=db.transaction(s).objectStore(s).getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>r([])});
-const put=(s,v)=>new Promise(r=>{const q=db.transaction(s,'readwrite').objectStore(s).put(v);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)});
+const put=(s,v)=>new Promise(r=>{try{const t=db.transaction(s,'readwrite'),q=t.objectStore(s).put(v);let k;q.onsuccess=()=>k=q.result;t.oncomplete=()=>r(k);t.onabort=t.onerror=()=>{window._ierr=t.error?t.error.name+': '+t.error.message:'error';r(null)}}catch(e){window._ierr=e.message;r(null)}});
 const del=(s,k)=>new Promise(r=>{const t=db.transaction(s,'readwrite');t.objectStore(s).delete(k);t.oncomplete=r});
 async function meta(f,nm){
  const m={title:(f.name||nm||'').replace(/\.[^.]+$/,''),artist:'',album:'',cover:null};
@@ -219,15 +219,30 @@ function renderDetail(){
  h.querySelector('.dc').append(card(ts,'','',null).firstChild);
  h.querySelector('h1').textContent=isA?det.key:l.name;h.querySelector('.di>span').textContent=cnt(ts.length);
  const dp=h.querySelector('#dp');dp.innerHTML=ic('play',18)+'Reproducir';dp.onclick=()=>ts.length&&start(ts.map(t=>t.id),0);
- if(isA){const b=document.createElement('button');b.className='b';b.textContent='Personalizar vinilo';b.onclick=()=>custom(det.key);h.querySelector('.cv').append(b);const e=document.createElement('button');e.className='b';e.textContent='Editar disco';e.onclick=()=>editAlbum(det.key);h.querySelector('.cv').append(e)}
+ if(isA){const b=document.createElement('button');b.className='b';b.textContent='Personalizar vinilo';b.onclick=()=>custom(det.key);h.querySelector('.cv').append(b);const e=document.createElement('button');e.className='b';e.textContent='Editar disco';e.onclick=()=>editAlbum(det.key);h.querySelector('.cv').append(e)}else{const b=document.createElement('button');b.className='b';b.textContent='Agregar canciones';b.onclick=()=>addTo(l);h.querySelector('.cv').append(b)}
  const dl=h.querySelector('#dl');
- if(!ts.length)dl.innerHTML='<div class="empty">Playlist vacía. Agrega canciones desde el menú (tres puntos) de cualquier canción de un disco.</div>';
+ if(!ts.length)dl.innerHTML='<div class="empty">Playlist vacía. Toca “Agregar canciones” para añadirlas.</div>';
  ts.forEach((t,i)=>{const r=document.createElement('div');r.className='row'+(queue[qi]===t.id?' cur':'');
   r.innerHTML='<div class="th"></div><div class="t"><b></b><span></span></div><button class="ib" style="width:38px;height:38px"></button>';
   r.querySelector('b').textContent=t.title;r.querySelector('span').textContent=t.artist||'Artista desconocido';
   const th=r.querySelector('.th'),u=cu(t);if(u)th.style.backgroundImage=`url(${u})`;else th.innerHTML=ic('note',20);
   r.querySelector('button').innerHTML=ic('more',20);r.querySelector('button').onclick=()=>menu(t);
   r.querySelector('.t').onclick=th.onclick=()=>start(ts.map(x=>x.id),i);dl.append(r)});tint(ts)}
+function addTo(l){
+ const d=$('#dlg'),av=tracks.filter(t=>!l.ids.includes(t.id));
+ d.innerHTML='<h3>Agregar canciones</h3><input id="p1" placeholder="Buscar"><div id="pk" style="max-height:48vh;overflow-y:auto;margin:8px 0"></div><div class="act"><button class="b" id="p8">Cancelar</button><button class="b pri" id="p9">Añadir</button></div>';
+ const pk=d.querySelector('#pk'),rows=[];
+ if(!av.length)pk.innerHTML='<div class="empty">No hay más canciones para agregar.</div>';
+ av.forEach(t=>{const r=document.createElement('label');r.className='row';r.style.cssText='margin:0;font-size:1rem;color:var(--tx)';
+  r.innerHTML='<input type="checkbox" style="width:22px;height:22px;flex:none;margin:0;padding:0"><div class="th"></div><div class="t"><b></b><span></span></div>';
+  r.querySelector('b').textContent=t.title;r.querySelector('span').textContent=sub(t);
+  const th=r.querySelector('.th'),u=cu(t);if(u)th.style.backgroundImage=`url(${u})`;else th.innerHTML=ic('note',20);
+  r._t=t;rows.push(r);pk.append(r)});
+ d.querySelector('#p1').oninput=e=>{const v=e.target.value.toLowerCase();rows.forEach(r=>r.hidden=!(r._t.title+' '+sub(r._t)).toLowerCase().includes(v))};
+ d.querySelector('#p8').onclick=()=>d.close();
+ d.querySelector('#p9').onclick=async()=>{const ids=rows.filter(r=>r.querySelector('input').checked).map(r=>r._t.id);
+  if(ids.length){l.ids.push(...ids);await put('lists',l)}d.close();refresh()};
+ d.showModal()}
 function editAlbum(key){
  const d=$('#dlg'),ts=tracks.filter(t=>(t.album||'Sin álbum')===key),ar=[...new Set(ts.map(t=>t.artist).filter(Boolean))];let nc;
  d.innerHTML='<h3>Editar disco</h3><label>Nombre del disco<input id="a1"></label><label>Artista<input id="a2"></label><div class="cv"><div class="th" id="a4" style="width:64px;height:64px"></div><button class="b" id="a5">Subir portada</button><button class="b" id="a6">Quitar</button></div><input type="file" id="a7" accept="image/*" hidden><div class="act"><button class="b" id="a8">Cancelar</button><button class="b pri" id="a9">Guardar</button></div>';
@@ -291,7 +306,7 @@ async function syncGH(){
     const blob=await res.blob(),p=f.path.split('/'),m=await meta(blob,p[p.length-1]);
     if(!m.album&&p.length>2)m.album=p[p.length-2];
     const rec={...m,blob,name:f.path,size:f.size,remote:1};if(h)rec.id=h.id;
-    if(await put('tracks',rec)==null)throw new Error('no se pudo guardar');
+    if(await put('tracks',rec)==null)throw new Error('no se pudo guardar ('+(window._ierr||'?')+')');
     ok++;
    }catch(e){bad.push(f.path+' → '+(e.message||e))}
   }
@@ -314,7 +329,7 @@ function card(ts,title,subt,fn,mfn){
  return c}
 const cnt=n=>n+(n===1?' canción':' canciones');
 function renderHome(){
- const h=$('#homebody');h.innerHTML='<div class="sh"><h2>Discos</h2></div>';
+ const h=$('#homebody');h.innerHTML='<div style="color:var(--mu);font-size:.85rem">'+cnt(tracks.length)+' guardadas en este dispositivo</div><div class="sh"><h2>Discos</h2></div>';
  if(!tracks.length)h.insertAdjacentHTML('beforeend','<div class="empty">Tu biblioteca está vacía.<br>Toca “Cargar archivos de música”.</div>');
  const g={};tracks.forEach(t=>{const k=t.album||'Sin álbum';(g[k]=g[k]||[]).push(t)});
  const gr=document.createElement('div');gr.className='grid';
@@ -421,7 +436,7 @@ $('#file').onchange=async e=>{
   b.textContent=`Procesando ${i+1}/${fs.length}…`;
   const m=await meta(fs[i]);
   const rec={title:m.title,artist:m.artist,album:m.album,cover:m.cover,blob:fs[i],name:fs[i].name};
-  rec.id=await put('tracks',rec);tracks.push(rec);
+  rec.id=await put('tracks',rec);if(rec.id==null){alert('No se pudo guardar: '+(window._ierr||'error'));continue}tracks.push(rec);
  }
  b.innerHTML=ic('plus',20)+'Cargar archivos de música';e.target.value='';refresh();
 };
