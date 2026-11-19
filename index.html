@@ -185,10 +185,12 @@ async function paint(t){
  let c=null;if(u){c=t.color||(t.color=await colorOf(u))}
  const L=$('#label'),as=aset['t:'+t.id]||aset[t.album||'Sin álbum']||{},D=$('.disc');D.style.background=discBg(norm(as),u,.25,'cqw');
  const cov=as.mode==='cover'&&!!u;L.classList.toggle('cov',cov);L.style.backgroundImage=cov?`url(${u})`:'';
+ if(as.video){cv.innerHTML='';cv.append(vid(as.video))}
  if(as.lcolor)c=[1,3,5].map(i=>parseInt(as.lcolor.slice(i,i+2),16));
  if(c){L.style.setProperty('--lc',`rgb(${c[0]},${c[1]},${c[2]})`);L.style.setProperty('--lx',(c[0]*.299+c[1]*.587+c[2]*.114)>150?'#1a1a1a':'#fff')}
  else{L.style.removeProperty('--lc');L.style.removeProperty('--lx')}
  if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:t.album,artwork:u?[{src:u,sizes:'512x512',type:t.cover.type||'image/jpeg'}]:[]});
+ if(as.video&&!u)poster(as.video).then(pu=>{if(pu&&'mediaSession'in navigator&&queue[qi]===t.id)navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:t.album,artwork:[{src:pu,sizes:'512x512',type:'image/jpeg'}]})})
 }
 const go=v=>{$('#home').hidden=v!=='home';$('#dv').hidden=v!=='dv';$('#pv').hidden=v!=='pv';if(v!=='dv'){document.documentElement.style.background='';document.body.classList.remove('tint');$('#dv').removeAttribute('style')}window.scrollTo(0,0);renderMini()};
 let orig=[];
@@ -208,6 +210,10 @@ function discBg(s,u,k,U){
  else if(s.style==='pic'&&u)b=`url(${u}) center/cover`;
  return [rim,gaps,sheen,g,b].join(',')}
 const aset={};let det=null;
+const vurl=b=>b._u||(b._u=URL.createObjectURL(b));
+function vid(b){const v=document.createElement('video');v.src=vurl(b);v.muted=v.loop=v.autoplay=v.playsInline=true;v.setAttribute('muted','');v.setAttribute('playsinline','');v.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:inherit';v.play().catch(()=>{});return v}
+const poster=b=>b._p?Promise.resolve(b._p):new Promise(r=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.src=vurl(b);v.onloadeddata=()=>{v.currentTime=.1};v.onseeked=()=>{const c=document.createElement('canvas');c.width=c.height=512;const m=Math.min(v.videoWidth,v.videoHeight);c.getContext('2d').drawImage(v,(v.videoWidth-m)/2,(v.videoHeight-m)/2,m,m,0,0,512,512);c.toBlob(bl=>r(b._p=bl?URL.createObjectURL(bl):''),'image/jpeg',.85)};v.onerror=()=>r('')});
+
 function openDet(type,key){det={type,key};go('dv');renderDetail()}
 function renderDetail(){
  if($('#dv').hidden||!det)return;
@@ -216,7 +222,7 @@ function renderDetail(){
  if((isA&&!ts.length)||(!isA&&!l)){go('home');return}
  const h=$('#dvb');h.innerHTML='<button class="chip" id="db"></button><div class="dh"><div class="dc"></div><div class="di"><h1></h1><span></span><div class="cv"><button class="b pri" id="dp" style="display:flex;gap:6px;align-items:center"></button></div></div></div><div id="dl"></div>';
  h.querySelector('#db').innerHTML=ic('back',16)+'Inicio';h.querySelector('#db').onclick=()=>go('home');
- h.querySelector('.dc').append(card(ts,'','',null).firstChild);
+ const dc=h.querySelector('.dc');dc.append(card(ts,'','',null).firstChild);const vb=isA&&(aset[det.key]||{}).video;if(vb){const cc=dc.firstChild;cc.style.backgroundImage='';cc.innerHTML='';cc.append(vid(vb))}
  h.querySelector('h1').textContent=isA?det.key:l.name;h.querySelector('.di>span').textContent=cnt(ts.length);
  const dp=h.querySelector('#dp');dp.innerHTML=ic('play',18)+'Reproducir';dp.onclick=()=>ts.length&&start(ts.map(t=>t.id),0);
  if(isA){const b=document.createElement('button');b.className='b';b.textContent='Personalizar vinilo';b.onclick=()=>custom(det.key);h.querySelector('.cv').append(b);const e=document.createElement('button');e.className='b';e.textContent='Editar disco';e.onclick=()=>editAlbum(det.key);h.querySelector('.cv').append(e)}else{const b=document.createElement('button');b.className='b';b.textContent='Agregar canciones';b.onclick=()=>addTo(l);h.querySelector('.cv').append(b)}
@@ -245,20 +251,23 @@ function addTo(l){
  d.showModal()}
 function editAlbum(key){
  const d=$('#dlg'),ts=tracks.filter(t=>(t.album||'Sin álbum')===key),ar=[...new Set(ts.map(t=>t.artist).filter(Boolean))];let nc;
- d.innerHTML='<h3>Editar disco</h3><label>Nombre del disco<input id="a1"></label><label>Artista<input id="a2"></label><div class="cv"><div class="th" id="a4" style="width:64px;height:64px"></div><button class="b" id="a5">Subir portada</button><button class="b" id="a6">Quitar</button></div><input type="file" id="a7" accept="image/*" hidden><div class="act"><button class="b" id="a8">Cancelar</button><button class="b pri" id="a9">Guardar</button></div>';
+ d.innerHTML='<h3>Editar disco</h3><label>Nombre del disco<input id="a1"></label><label>Artista<input id="a2"></label><div class="cv"><div class="th" id="a4" style="width:64px;height:64px"></div><button class="b" id="a5">Subir portada</button><button class="b" id="a6">Quitar</button></div><input type="file" id="a7" accept="image/*" hidden><label>Portada animada (MP4)</label><div class="cv"><button class="b" id="a10">Subir MP4</button><button class="b" id="a11">Quitar animación</button></div><div id="a12" style="font-size:.8rem;color:var(--mu);margin-bottom:6px"></div><input type="file" id="a13" accept="video/mp4,video/*" hidden><div class="act"><button class="b" id="a8">Cancelar</button><button class="b pri" id="a9">Guardar</button></div>';
  const q=x=>d.querySelector(x);
  q('#a1').value=key==='Sin álbum'?'':key;q('#a2').value=ar.length===1?ar[0]:'';q('#a2').placeholder=ar.length>1?'Varios artistas (vacío = no cambiar)':'Artista';
  const pv=b=>{const e=q('#a4');if(b){e.style.backgroundImage=`url(${URL.createObjectURL(b)})`;e.innerHTML=''}else{e.style.backgroundImage='';e.innerHTML=ic('note',24)}};
  const c0=ts.find(t=>t.cover);pv(c0&&c0.cover);
  q('#a5').onclick=()=>q('#a7').click();
  q('#a7').onchange=e=>{if(e.target.files[0]){nc=e.target.files[0];pv(nc)}};
- q('#a6').onclick=()=>{nc=null;pv(null)};q('#a8').onclick=()=>d.close();
+ q('#a6').onclick=()=>{nc=null;pv(null)};
+ let nv;const hv=()=>nv===undefined?!!(aset[key]&&aset[key].video):!!nv;const st=()=>q('#a12').textContent=hv()?'Animación activa':'Sin animación';st();
+ q('#a10').onclick=()=>q('#a13').click();q('#a13').onchange=e=>{if(e.target.files[0]){nv=e.target.files[0];st()}};q('#a11').onclick=()=>{nv=null;st()};q('#a8').onclick=()=>d.close();
  q('#a9').onclick=async()=>{
   const nk=q('#a1').value.trim()||'Sin álbum',na=q('#a2').value.trim();
   for(const t of ts){if(nk!==key)t.album=nk==='Sin álbum'?'':nk;if(na)t.artist=na;
    if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;delete t.color}
    await put('tracks',t)}
   if(nk!==key){const o=aset[key];if(o){aset[nk]={...o,name:nk};await put('albums',aset[nk]);await del('albums',key);delete aset[key]}if(det&&det.type==='album'&&det.key===key)det.key=nk}
+  if(nv!==undefined){const r=aset[nk]||{name:nk};if(nv)r.video=nv;else delete r.video;aset[nk]=r;await put('albums',r)}
   d.close();refresh();const t=byId(queue[qi]);if(t)paint(t)};
  d.showModal()}
 function custom(key,tr){
