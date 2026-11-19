@@ -80,8 +80,8 @@ dialog input:not([type=file]){display:block;width:100%;margin-top:3px;padding:10
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px}
 .card{position:relative;cursor:pointer}
 .cc{aspect-ratio:1;border-radius:12px;background:var(--sf2) center/cover;box-shadow:0 6px 18px #0002;display:grid;place-items:center;color:var(--mu);overflow:hidden}
-.cc.m{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
-.cc.m div{background:center/cover}
+.cc.m{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;place-items:stretch}
+.cc.m div{background:center/cover;min-height:0;min-width:0}
 .card b,.card span,.qc b,.qc span,.mini b,.mini span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card b{margin-top:8px}.card span,.qc span,.mini span{color:var(--mu);font-size:.82rem}
 .cm,.x{position:absolute;top:6px;right:6px;width:34px;height:34px;border-radius:50%;background:#000b;color:#fff;display:grid;place-items:center}
@@ -361,7 +361,7 @@ function dmenu(items){const d=$('#dlg');d.innerHTML='';items.concat([['Cancelar'
 function card(ts,title,subt,fn,mfn,anim){
  const c=document.createElement('div');c.className='card';
  const cc=document.createElement('div'),cv=ts.filter(t=>covB(t));
- if(cv.length>=4){cc.className='cc m';cv.slice(0,4).forEach(t=>{const d=document.createElement('div');d.style.backgroundImage=`url(${cu(t)})`;cc.append(d)})}
+ if(!anim&&cv.length>=4){cc.className='cc m';cv.slice(0,4).forEach(t=>{const d=document.createElement('div');d.style.backgroundImage=`url(${cu(t)})`;cc.append(d)})}
  else{cc.className='cc';if(cv.length)cc.style.backgroundImage=`url(${cu(cv[0])})`;else cc.innerHTML=ic('note',44)}
  c.append(cc);c.insertAdjacentHTML('beforeend','<b></b><span></span>');
  c.querySelector('b').textContent=title;c.querySelector('span').textContent=subt;
