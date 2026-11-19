@@ -226,17 +226,18 @@ function discBg(s,u,k,U){
  return [rim,gaps,sheen,g,b].join(',')}
 const aset={};let det=null;
 const vurl=b=>b._u||(b._u=URL.createObjectURL(b));
-function vid(b,p){const v=document.createElement('video');if(p)v.poster=p;v.src=vurl(b);v.muted=v.loop=v.autoplay=v.playsInline=true;v.setAttribute('muted','');v.setAttribute('playsinline','');v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit';v.play().catch(()=>{});return v}
+function vid(b,p){const v=document.createElement('video');if(p)v.poster=p;v.src=vurl(b);v.muted=v.loop=v.autoplay=v.playsInline=true;v.setAttribute('muted','');v.setAttribute('playsinline','');v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit';v.addEventListener('playing',()=>setTimeout(()=>grab(v,b),600),{once:true});v.play().catch(()=>{});return v}
+function grab(v,b){if(b._g||!v.videoWidth)return;b._g=1;const c=document.createElement('canvas');c.width=c.height=512;const m=Math.min(v.videoWidth,v.videoHeight);try{c.getContext('2d').drawImage(v,(v.videoWidth-m)/2,(v.videoHeight-m)/2,m,m,0,0,512,512);c.toBlob(bl=>{if(bl){b._pb=bl;b._p=URL.createObjectURL(bl);fillCovers(true)}},'image/jpeg',.85)}catch(e){}}
 const poster=b=>b._p?Promise.resolve(b._p):new Promise(r=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.src=vurl(b);
  const cap=()=>{if(b._c||!v.videoWidth)return;b._c=1;const c=document.createElement('canvas');c.width=c.height=512;const m=Math.min(v.videoWidth,v.videoHeight);c.getContext('2d').drawImage(v,(v.videoWidth-m)/2,(v.videoHeight-m)/2,m,m,0,0,512,512);v.pause();c.toBlob(bl=>{b._pb=bl;r(b._p=bl?URL.createObjectURL(bl):'')},'image/jpeg',.85)};
  v.onplaying=()=>setTimeout(cap,200);v.onseeked=cap;v.onerror=()=>r('');v.play().catch(()=>{});setTimeout(()=>r(b._p||''),6000)});
 function stillv(b){const v=document.createElement('video');v.src=vurl(b)+'#t=0.1';v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.preload='metadata';v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';v.onloadedmetadata=()=>{v.currentTime=.1};v.play().then(()=>setTimeout(()=>v.pause(),150)).catch(()=>{});return v}
 const posterBlob=async b=>{await poster(b);return b._pb||null};
-async function fillCovers(){let ch=false;
+async function fillCovers(force){let ch=false;
  for(const k in aset){const v=aset[k].video;if(!v||k.startsWith('t:'))continue;
-  const ts=tracks.filter(t=>(t.album||'Sin álbum')===k&&!t.cover);if(!ts.length)continue;
+  const ts=tracks.filter(t=>(t.album||'Sin álbum')===k&&(!t.cover||(force&&t.auto)));if(!ts.length)continue;
   const pb=await posterBlob(v);if(!pb)continue;
-  for(const t of ts){t.cover=pb;delete t.color;await put('tracks',t)}ch=true}
+  for(const t of ts){if(urls['c'+t.id]){URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id]}t.cover=pb;t.auto=1;delete t.color;await put('tracks',t)}ch=true}
  if(ch){refresh();const t=byId(queue[qi]);if(t)paint(t)}}
 
 function openDet(type,key){det={type,key};go('dv');renderDetail()}
@@ -289,7 +290,7 @@ function editAlbum(key){
  q('#a9').onclick=async()=>{
   const nk=q('#a1').value.trim()||'Sin álbum',na=q('#a2').value.trim();
   for(const t of ts){if(nk!==key)t.album=nk==='Sin álbum'?'':nk;if(na)t.artist=na;
-   if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;delete t.color}
+   if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;delete t.color;delete t.auto}
    await put('tracks',t)}
   if(nk!==key){const o=aset[key];if(o){aset[nk]={...o,name:nk};await put('albums',aset[nk]);await del('albums',key);delete aset[key]}if(det&&det.type==='album'&&det.key===key)det.key=nk}
   if(nv!==undefined){const r=aset[nk]||{name:nk};if(nv)r.video=nv;else delete r.video;aset[nk]=r;await put('albums',r);await fillCovers()}
@@ -355,9 +356,7 @@ function card(ts,title,subt,fn,mfn,anim){
  const c=document.createElement('div');c.className='card';
  const cc=document.createElement('div'),cv=ts.filter(t=>t.cover);
  if(cv.length>=4){cc.className='cc m';cv.slice(0,4).forEach(t=>{const d=document.createElement('div');d.style.backgroundImage=`url(${cu(t)})`;cc.append(d)})}
- else{cc.className='cc';if(cv.length)cc.style.backgroundImage=`url(${cu(cv[0])})`;else{const av=ts.length&&(aset[ts[0].album||'Sin álbum']||{}).video;if(av)cc.append(stillv(av));else cc.innerHTML=ic('note',44)}}
- const av=anim&&ts.length&&(aset[ts[0].album||'Sin álbum']||{}).video;
- if(av){cc.className='cc';cc.innerHTML='';const f=cv[0];cc.style.backgroundImage=f?`url(${cu(f)})`:'';cc.append(vid(av,f?cu(f):''))}
+ else{cc.className='cc';if(cv.length)cc.style.backgroundImage=`url(${cu(cv[0])})`;else cc.innerHTML=ic('note',44)}
  c.append(cc);c.insertAdjacentHTML('beforeend','<b></b><span></span>');
  c.querySelector('b').textContent=title;c.querySelector('span').textContent=subt;
  c.onclick=fn;
@@ -430,7 +429,7 @@ function edit(t){
  q('#e8').onclick=()=>d.close();
  q('#e9').onclick=async()=>{
   t.title=q('#e1').value.trim()||t.title;t.artist=q('#e2').value.trim();t.album=q('#e3').value.trim();
-  if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;delete t.color}
+  if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;delete t.color;delete t.auto}
   await put('tracks',t);d.close();refresh();if(queue[qi]===t.id)paint(t);
  };
  d.showModal();
