@@ -96,7 +96,8 @@ dialog input:not([type=file]){display:block;width:100%;margin-top:3px;padding:10
 .mini .m1{flex:1;min-width:0;display:flex;gap:10px;align-items:center;cursor:pointer}
 .mini .m1 div:last-child{min-width:0}
 .label.cov{background-size:cover;background-position:center}
-.dh{display:flex;gap:16px;align-items:flex-end;margin:16px 0}.dc{width:min(40vw,200px);flex:none}
+.dh{display:flex;gap:16px;align-items:flex-end;margin:16px 0}.dc{width:min(44vw,240px);flex:none}
+.cc{position:relative}
 .di{min-width:0}.di h1{margin:0 0 4px;font-size:1.5rem}.di>span{color:var(--mu)}.di .cv{flex-wrap:wrap}
 .pvd{width:120px;aspect-ratio:1;border-radius:50%;margin:0 auto 12px;position:relative;background:repeating-radial-gradient(circle,var(--v1) 0 2px,var(--v2) 3px 4px)}
 .pvd i{position:absolute;inset:32%;border-radius:50%;background:#888 center/cover}
@@ -211,8 +212,11 @@ function discBg(s,u,k,U){
  return [rim,gaps,sheen,g,b].join(',')}
 const aset={};let det=null;
 const vurl=b=>b._u||(b._u=URL.createObjectURL(b));
-function vid(b,p){const v=document.createElement('video');if(p)v.poster=p;v.src=vurl(b);v.muted=v.loop=v.autoplay=v.playsInline=true;v.setAttribute('muted','');v.setAttribute('playsinline','');v.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:inherit';v.play().catch(()=>{});return v}
-const poster=b=>b._p?Promise.resolve(b._p):new Promise(r=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.src=vurl(b);v.onloadeddata=()=>{v.currentTime=.1};v.onseeked=()=>{const c=document.createElement('canvas');c.width=c.height=512;const m=Math.min(v.videoWidth,v.videoHeight);c.getContext('2d').drawImage(v,(v.videoWidth-m)/2,(v.videoHeight-m)/2,m,m,0,0,512,512);c.toBlob(bl=>{b._pb=bl;r(b._p=bl?URL.createObjectURL(bl):'')},'image/jpeg',.85)};v.onerror=()=>r('');setTimeout(()=>r(''),4000)});
+function vid(b,p){const v=document.createElement('video');if(p)v.poster=p;v.src=vurl(b);v.muted=v.loop=v.autoplay=v.playsInline=true;v.setAttribute('muted','');v.setAttribute('playsinline','');v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit';v.play().catch(()=>{});return v}
+const poster=b=>b._p?Promise.resolve(b._p):new Promise(r=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.src=vurl(b);
+ const cap=()=>{if(b._c||!v.videoWidth)return;b._c=1;const c=document.createElement('canvas');c.width=c.height=512;const m=Math.min(v.videoWidth,v.videoHeight);c.getContext('2d').drawImage(v,(v.videoWidth-m)/2,(v.videoHeight-m)/2,m,m,0,0,512,512);v.pause();c.toBlob(bl=>{b._pb=bl;r(b._p=bl?URL.createObjectURL(bl):'')},'image/jpeg',.85)};
+ v.onplaying=()=>setTimeout(cap,200);v.onseeked=cap;v.onerror=()=>r('');v.play().catch(()=>{});setTimeout(()=>r(b._p||''),6000)});
+function stillv(b){const v=document.createElement('video');v.src=vurl(b)+'#t=0.1';v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.preload='metadata';v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';v.onloadedmetadata=()=>{v.currentTime=.1};v.play().then(()=>setTimeout(()=>v.pause(),150)).catch(()=>{});return v}
 const posterBlob=async b=>{await poster(b);return b._pb||null};
 async function fillCovers(){let ch=false;
  for(const k in aset){const v=aset[k].video;if(!v||k.startsWith('t:'))continue;
@@ -337,7 +341,7 @@ function card(ts,title,subt,fn,mfn){
  const c=document.createElement('div');c.className='card';
  const cc=document.createElement('div'),cv=ts.filter(t=>t.cover);
  if(cv.length>=4){cc.className='cc m';cv.slice(0,4).forEach(t=>{const d=document.createElement('div');d.style.backgroundImage=`url(${cu(t)})`;cc.append(d)})}
- else{cc.className='cc';if(cv.length)cc.style.backgroundImage=`url(${cu(cv[0])})`;else cc.innerHTML=ic('note',44)}
+ else{cc.className='cc';if(cv.length)cc.style.backgroundImage=`url(${cu(cv[0])})`;else{const av=ts.length&&(aset[ts[0].album||'Sin álbum']||{}).video;if(av)cc.append(stillv(av));else cc.innerHTML=ic('note',44)}}
  c.append(cc);c.insertAdjacentHTML('beforeend','<b></b><span></span>');
  c.querySelector('b').textContent=title;c.querySelector('span').textContent=subt;
  c.onclick=fn;
