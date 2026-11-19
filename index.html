@@ -105,6 +105,20 @@ dialog input:not([type=file]){display:block;width:100%;margin-top:3px;padding:10
 .sw button{width:36px;height:36px;border-radius:50%;border:3px solid transparent;background:var(--c)}
 .sw button.on{border-color:var(--tx)}
 body.tint{background:transparent}
+body{overflow-x:hidden}
+.app{grid-template-columns:minmax(0,1fr)}
+.app>*,.player>*{min-width:0}
+dialog{max-height:88vh;overflow-y:auto}
+@media(max-width:600px){
+.home{padding:16px 12px 110px}
+.hh{flex-wrap:wrap}.hh h1{font-size:1.5rem}
+.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.dh{flex-direction:column;align-items:center;text-align:center}
+.dc{width:min(72vw,280px)}
+.di .cv{justify-content:center}
+.ctl{gap:8px}.ib{width:42px;height:42px}.play{width:60px;height:60px}
+.app{padding:8px}
+}
 </style></head>
 <body>
 <div class="home" id="home">
@@ -337,11 +351,13 @@ async function syncGH(){
  setTimeout(()=>b.textContent=lab,3000)}
 
 function dmenu(items){const d=$('#dlg');d.innerHTML='';items.concat([['Cancelar']]).forEach(([txt,fn])=>{const b=document.createElement('button');b.className='mi';b.textContent=txt;b.onclick=async()=>{d.close();if(fn){await fn();refresh()}};d.append(b)});d.showModal()}
-function card(ts,title,subt,fn,mfn){
+function card(ts,title,subt,fn,mfn,anim){
  const c=document.createElement('div');c.className='card';
  const cc=document.createElement('div'),cv=ts.filter(t=>t.cover);
  if(cv.length>=4){cc.className='cc m';cv.slice(0,4).forEach(t=>{const d=document.createElement('div');d.style.backgroundImage=`url(${cu(t)})`;cc.append(d)})}
  else{cc.className='cc';if(cv.length)cc.style.backgroundImage=`url(${cu(cv[0])})`;else{const av=ts.length&&(aset[ts[0].album||'Sin álbum']||{}).video;if(av)cc.append(stillv(av));else cc.innerHTML=ic('note',44)}}
+ const av=anim&&ts.length&&(aset[ts[0].album||'Sin álbum']||{}).video;
+ if(av){cc.className='cc';cc.innerHTML='';const f=cv[0];cc.style.backgroundImage=f?`url(${cu(f)})`:'';cc.append(vid(av,f?cu(f):''))}
  c.append(cc);c.insertAdjacentHTML('beforeend','<b></b><span></span>');
  c.querySelector('b').textContent=title;c.querySelector('span').textContent=subt;
  c.onclick=fn;
@@ -354,7 +370,7 @@ function renderHome(){
  const g={};tracks.forEach(t=>{const k=t.album||'Sin álbum';(g[k]=g[k]||[]).push(t)});
  const gr=document.createElement('div');gr.className='grid';
  Object.keys(g).forEach(k=>{const a=g[k],ar=[...new Set(a.map(t=>t.artist).filter(Boolean))];
-  gr.append(card(a,k,(ar.length>1?'Varios artistas':ar[0]||'Artista desconocido')+' · '+cnt(a.length),()=>openDet('album',k),()=>dmenu([['Editar disco',()=>editAlbum(k)],['Personalizar vinilo',()=>custom(k)]])))});
+  gr.append(card(a,k,(ar.length>1?'Varios artistas':ar[0]||'Artista desconocido')+' · '+cnt(a.length),()=>openDet('album',k),()=>dmenu([['Editar disco',()=>editAlbum(k)],['Personalizar vinilo',()=>custom(k)]]),true))});
  if(tracks.length)h.append(gr);
  const sh=document.createElement('div');sh.className='sh';sh.innerHTML='<h2>Playlists</h2><button class="chip"></button>';
  const nb=sh.querySelector('button');nb.innerHTML=ic('plus',16)+'Nueva playlist';
