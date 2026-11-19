@@ -187,7 +187,8 @@ async function meta(f,nm){
  return m;
 }
 const fmt=s=>isFinite(s)?Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'):'0:00';
-const cu=t=>t.cover?(urls['c'+t.id]||(urls['c'+t.id]=URL.createObjectURL(t.cover))):'';
+const covB=t=>t.ucov?t.cover:((aset[t.album||'Sin álbum']||{}).cover||t.cover);
+const cu=t=>{const b=covB(t);return b?(b._cu||(b._cu=URL.createObjectURL(b))):''};
 const tu=t=>urls['t'+t.id]||(urls['t'+t.id]=URL.createObjectURL(t.blob));
 const byId=id=>tracks.find(t=>t.id===id);
 const sub=t=>[t.artist||'Artista desconocido',t.album].filter(Boolean).join(' · ');
@@ -204,12 +205,12 @@ async function paint(t){
  if(as.lcolor)c=[1,3,5].map(i=>parseInt(as.lcolor.slice(i,i+2),16));
  if(c){L.style.setProperty('--lc',`rgb(${c[0]},${c[1]},${c[2]})`);L.style.setProperty('--lx',(c[0]*.299+c[1]*.587+c[2]*.114)>150?'#1a1a1a':'#fff')}
  else{L.style.removeProperty('--lc');L.style.removeProperty('--lx')}
- if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:t.album,artwork:u?[{src:u,sizes:'512x512',type:t.cover.type||'image/jpeg'}]:[]});
+ if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:t.album,artwork:u?[{src:u,sizes:'512x512',type:(covB(t)||{}).type||'image/jpeg'}]:[]});
  if(as.video&&!u)poster(as.video).then(pu=>{if(pu&&'mediaSession'in navigator&&queue[qi]===t.id)navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:t.album,artwork:[{src:pu,sizes:'512x512',type:'image/jpeg'}]})})
 }
 const setSh=v=>{shuffle=v;$('#shuf').classList.toggle('on',v)};
 const go=v=>{$('#home').hidden=v!=='home';$('#dv').hidden=v!=='dv';$('#pv').hidden=v!=='pv';if(v!=='dv'){document.documentElement.style.background='';document.body.classList.remove('tint');$('#dv').removeAttribute('style')}window.scrollTo(0,0);renderMini()};
-let orig=[];
+let orig=[],removed=new Set();
 const COLS=['#1a1a1a','#a3181d','#16408a','#1b6e3f','#55238a','#ececec','#b8912c'];
 const STY=[['classic','Clásico negro'],['solid','Color sólido'],['marble','Marmoleado'],['splat','Salpicado'],['split','Dos colores'],['pic','Picture disc']];
 const norm=s=>{s=Object.assign({style:'classic',c1:'#a3181d',c2:'#f2f2f2',lcolor:null,mode:'text'},s);if(s.vinyl&&!s.migr){s.style='solid';s.c1=COLS[s.vinyl];s.migr=1}return s};
@@ -235,10 +236,11 @@ const poster=b=>b._p?Promise.resolve(b._p):new Promise(r=>{const v=document.crea
 function stillv(b){const v=document.createElement('video');v.src=vurl(b)+'#t=0.1';v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.preload='metadata';v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';v.onloadedmetadata=()=>{v.currentTime=.1};v.play().then(()=>setTimeout(()=>v.pause(),150)).catch(()=>{});return v}
 const posterBlob=async b=>{await poster(b);return b._pb||null};
 async function fillCovers(force){let ch=false;
- for(const k in aset){const v=aset[k].video;if(!v||k.startsWith('t:'))continue;
-  const ts=tracks.filter(t=>(t.album||'Sin álbum')===k&&(!t.cover||(force&&t.auto)));if(!ts.length)continue;
+ for(const k in aset){const a=aset[k],v=a.video;if(!v||k.startsWith('t:'))continue;
+  const ts=tracks.filter(t=>(t.album||'Sin álbum')===k),none=!a.cover&&!ts.some(t=>t.cover);
+  if(!(force?(a.auto||none):none))continue;
   const pb=await posterBlob(v);if(!pb)continue;
-  for(const t of ts){if(urls['c'+t.id]){URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id]}t.cover=pb;t.auto=1;delete t.color;await put('tracks',t)}ch=true}
+  a.cover=pb;a.auto=1;ts.forEach(t=>delete t.color);await put('albums',a);ch=true}
  if(ch){refresh();const t=byId(queue[qi]);if(t)paint(t)}}
 
 function openDet(type,key){det={type,key};go('dv');renderDetail()}
@@ -249,7 +251,7 @@ function renderDetail(){
  if((isA&&!ts.length)||(!isA&&!l)){go('home');return}
  const h=$('#dvb');h.innerHTML='<button class="chip" id="db"></button><div class="dh"><div class="dc"></div><div class="di"><h1></h1><span></span><div class="cv"><button class="b pri" id="dp" style="display:flex;gap:6px;align-items:center"></button></div></div></div><div id="dl"></div>';
  h.querySelector('#db').innerHTML=ic('back',16)+'Inicio';h.querySelector('#db').onclick=()=>go('home');
- const dc=h.querySelector('.dc');dc.append(card(ts,'','',null).firstChild);const vb=isA&&(aset[det.key]||{}).video;if(vb){const cc=dc.firstChild,f=ts.find(t=>t.cover),fu=f?cu(f):'';cc.className='cc';cc.innerHTML='';cc.style.backgroundImage=fu?`url(${fu})`:'';cc.append(vid(vb,fu))}
+ const dc=h.querySelector('.dc');dc.append(card(ts,'','',null).firstChild);const vb=isA&&(aset[det.key]||{}).video;if(vb){const cc=dc.firstChild,f=ts.find(t=>covB(t)),fu=f?cu(f):'';cc.className='cc';cc.innerHTML='';cc.style.backgroundImage=fu?`url(${fu})`:'';cc.append(vid(vb,fu))}
  h.querySelector('h1').textContent=isA?det.key:l.name;h.querySelector('.di>span').textContent=cnt(ts.length);
  const dp=h.querySelector('#dp');dp.innerHTML=ic('play',18)+'Reproducir';dp.onclick=()=>{if(!ts.length)return;setSh(false);start(ts.map(t=>t.id),0)};
  const ds=document.createElement('button');ds.className='b';ds.style.cssText='display:flex;gap:6px;align-items:center';ds.innerHTML=ic('shuffle',18)+'Aleatorio';dp.after(ds);
@@ -284,7 +286,7 @@ function editAlbum(key){
  const q=x=>d.querySelector(x);
  q('#a1').value=key==='Sin álbum'?'':key;q('#a2').value=ar.length===1?ar[0]:'';q('#a2').placeholder=ar.length>1?'Varios artistas (vacío = no cambiar)':'Artista';
  const pv=b=>{const e=q('#a4');if(b){e.style.backgroundImage=`url(${URL.createObjectURL(b)})`;e.innerHTML=''}else{e.style.backgroundImage='';e.innerHTML=ic('note',24)}};
- const c0=ts.find(t=>t.cover);pv(c0&&c0.cover);
+ pv(ts.map(covB).find(Boolean));
  q('#a5').onclick=()=>q('#a7').click();
  q('#a7').onchange=e=>{if(e.target.files[0]){nc=e.target.files[0];pv(nc)}};
  q('#a6').onclick=()=>{nc=null;pv(null)};
@@ -292,17 +294,18 @@ function editAlbum(key){
  q('#a10').onclick=()=>q('#a13').click();q('#a13').onchange=e=>{if(e.target.files[0]){nv=e.target.files[0];st()}};q('#a11').onclick=()=>{nv=null;st()};q('#a8').onclick=()=>d.close();
  q('#a9').onclick=async()=>{
   const nk=q('#a1').value.trim()||'Sin álbum',na=q('#a2').value.trim();
-  for(const t of ts){if(nk!==key)t.album=nk==='Sin álbum'?'':nk;if(na)t.artist=na;
-   if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;delete t.color;delete t.auto}
-   await put('tracks',t)}
+  if(nk!==key||na)for(const t of ts){if(nk!==key)t.album=nk==='Sin álbum'?'':nk;if(na)t.artist=na;await put('tracks',t)}
   if(nk!==key){const o=aset[key];if(o){aset[nk]={...o,name:nk};await put('albums',aset[nk]);await del('albums',key);delete aset[key]}if(det&&det.type==='album'&&det.key===key)det.key=nk}
-  if(nv!==undefined){const r=aset[nk]||{name:nk};if(nv)r.video=nv;else delete r.video;aset[nk]=r;await put('albums',r);await fillCovers()}
+  if(nc!==undefined||nv!==undefined){const r=aset[nk]||{name:nk};
+   if(nc!==undefined){if(nc)r.cover=nc;else delete r.cover;delete r.auto;ts.forEach(t=>delete t.color)}
+   if(nv!==undefined){if(nv)r.video=nv;else delete r.video}
+   aset[nk]=r;await put('albums',r);await fillCovers()}
   d.close();refresh();const t=byId(queue[qi]);if(t)paint(t)};
  d.showModal()}
 function custom(key,tr){
  const d=$('#dlg'),ts=tr?[tr]:tracks.filter(t=>(t.album||'Sin álbum')===key),s=norm(aset[key]||(tr&&aset[tr.album||'Sin álbum'])),ci='style="height:44px;padding:2px"';
  d.innerHTML=`<h3>${tr?'Vinilo de esta canción':'Personalizar vinilo'}</h3><div class="pvd"><i></i></div><label>Estilo del disco</label><div class="cv" id="st" style="flex-wrap:wrap"></div><div id="cc"><label>Color principal<input type="color" id="c1" ${ci}></label><label id="l2">Color secundario<input type="color" id="c2" ${ci}></label></div><label>Etiqueta central</label><div class="cv"><button class="b" data-m="text">Texto</button><button class="b" data-m="cover">Portada</button></div><label>Color de la etiqueta<input type="color" id="c4" ${ci}></label><button class="b" id="c5">Etiqueta automática</button>${tr?'<button class="b" id="c6">Usar el del disco</button>':''}<div class="act"><button class="b" id="c8">Cancelar</button><button class="b pri" id="c9">Guardar</button></div>`;
- const q=x=>d.querySelector(x),pv=q('.pvd'),auto=(ts.find(t=>t.color)||{}).color,cvr=ts.find(t=>t.cover);
+ const q=x=>d.querySelector(x),pv=q('.pvd'),auto=(ts.find(t=>t.color)||{}).color,cvr=ts.find(t=>covB(t));
  const draw=()=>{pv.style.background=discBg(s,cvr?cu(cvr):'',.9,'px');
   const i=pv.firstChild;i.style.backgroundImage=s.mode==='cover'&&cvr?`url(${cu(cvr)})`:'';
   i.style.backgroundColor=s.lcolor||(auto?`rgb(${auto.slice(0,3)})`:'#888');
@@ -319,7 +322,7 @@ function custom(key,tr){
  q('#c9').onclick=async()=>{aset[key]={name:key,...s};await put('albums',aset[key]);d.close();const t=byId(queue[qi]);if(t)paint(t);renderDetail()};
  draw();d.showModal()}
 async function tint(ts){
- const c0=ts.find(t=>t.cover);if(!c0)return;
+ const c0=ts.find(t=>covB(t));if(!c0)return;
  const c=c0.color||(c0.color=await colorOf(cu(c0)));
  if(!c||$('#dv').hidden)return;
  const [r,g,b]=c,dark=(r*.299+g*.587+b*.114)*.85<150,k=x=>x*.7|0;
@@ -357,7 +360,7 @@ async function syncGH(){
 function dmenu(items){const d=$('#dlg');d.innerHTML='';items.concat([['Cancelar']]).forEach(([txt,fn])=>{const b=document.createElement('button');b.className='mi';b.textContent=txt;b.onclick=async()=>{d.close();if(fn){await fn();refresh()}};d.append(b)});d.showModal()}
 function card(ts,title,subt,fn,mfn,anim){
  const c=document.createElement('div');c.className='card';
- const cc=document.createElement('div'),cv=ts.filter(t=>t.cover);
+ const cc=document.createElement('div'),cv=ts.filter(t=>covB(t));
  if(cv.length>=4){cc.className='cc m';cv.slice(0,4).forEach(t=>{const d=document.createElement('div');d.style.backgroundImage=`url(${cu(t)})`;cc.append(d)})}
  else{cc.className='cc';if(cv.length)cc.style.backgroundImage=`url(${cu(cv[0])})`;else cc.innerHTML=ic('note',44)}
  c.append(cc);c.insertAdjacentHTML('beforeend','<b></b><span></span>');
@@ -406,13 +409,14 @@ function renderMini(){
  const b=m.querySelector('button');b.innerHTML=ic(au.paused?'play':'pause',22);b.onclick=()=>au.paused?au.play():au.pause()}
 function refresh(){renderHome();renderQ();renderMini();renderDetail()}
 function reset(){$('#ttl').textContent='Sin reproducción';$('#art').textContent='Carga tu música para empezar';$('#lt1').textContent=$('#lt2').textContent='';$('#mre').style.display='none';$('#cover').style.backgroundImage='';$('#cover').innerHTML=ic('note',72);$('#label').style.removeProperty('--lc');$('#dur').textContent='0:00'}
-function drop(id){const i=queue.indexOf(id);if(i<0)return;queue.splice(i,1);
+function drop(id){const i=queue.indexOf(id);if(i<0)return;removed.add(id);queue.splice(i,1);
  if(i<qi)qi--;else if(i===qi){const was=!au.paused;if(queue.length){qi=Math.min(qi,queue.length-1);load(was)}else{qi=-1;au.pause();au.removeAttribute('src');reset()}}
  refresh()}
-function reorder(){if(qi<0)return;const up=queue.slice(qi+1);
- if(shuffle){for(let i=up.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[up[i],up[j]]=[up[j],up[i]]}}
- else up.sort((a,b)=>orig.indexOf(a)-orig.indexOf(b));
- queue=queue.slice(0,qi+1).concat(up)}
+function reorder(){if(qi<0)return;const cur=queue[qi],ok=x=>!removed.has(x)&&byId(x);
+ if(shuffle){const rest=orig.filter(x=>x!==cur&&ok(x));
+  for(let i=rest.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rest[i],rest[j]]=[rest[j],rest[i]]}
+  queue=[cur,...rest];qi=0}
+ else{const all=orig.filter(ok);queue=all.includes(cur)?all:[cur,...all];qi=queue.indexOf(cur)}}
 function menu(t,lite){
  const rm=lists.filter(l=>l.ids.includes(t.id)).map(l=>['Quitar de '+l.name,async()=>{l.ids=l.ids.filter(x=>x!==t.id);await put('lists',l)}]);
  dmenu([...(lite?[]:[['Editar información y portada',()=>edit(t)],['Personalizar vinilo del disco',()=>custom(t.album||'Sin álbum')],['Personalizar vinilo de esta canción',()=>custom('t:'+t.id,t)]]),
@@ -425,19 +429,19 @@ function edit(t){
  const q=s=>d.querySelector(s);
  q('#e1').value=t.title;q('#e2').value=t.artist||'';q('#e3').value=t.album||'';
  const pv=b=>{const e=q('#e4');if(b){e.style.backgroundImage=`url(${URL.createObjectURL(b)})`;e.innerHTML=''}else{e.style.backgroundImage='';e.innerHTML=ic('note',24)}};
- pv(t.cover);
+ pv(covB(t));
  q('#e5').onclick=()=>q('#e7').click();
  q('#e7').onchange=e=>{if(e.target.files[0]){nc=e.target.files[0];pv(nc)}};
  q('#e6').onclick=()=>{nc=null;pv(null)};
  q('#e8').onclick=()=>d.close();
  q('#e9').onclick=async()=>{
   t.title=q('#e1').value.trim()||t.title;t.artist=q('#e2').value.trim();t.album=q('#e3').value.trim();
-  if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;delete t.color;delete t.auto}
+  if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;t.ucov=nc?1:0;delete t.color;delete t.auto}
   await put('tracks',t);d.close();refresh();if(queue[qi]===t.id)paint(t);
  };
  d.showModal();
 }
-function start(ids,i){orig=ids.slice();queue=ids.slice();qi=i;reorder();load(true);go('pv')}
+function start(ids,i){removed=new Set();orig=ids.slice();queue=ids.slice();qi=i;reorder();load(true);go('pv')}
 function load(play){
  const t=byId(queue[qi]);if(!t)return;
  au.src=tu(t);paint(t);if(play)au.play().catch(()=>{});refresh();
