@@ -280,17 +280,24 @@ async function syncGH(){
   if(!j.tree)throw 0;
   const rem=j.tree.filter(f=>f.type==='blob'&&/^music\/.+\.(mp3|m4a|flac|wav|ogg|aac)$/i.test(f.path));
   const have=new Map(tracks.filter(t=>t.remote).map(t=>[t.name,t])),todo=rem.filter(f=>!have.has(f.path)||have.get(f.path).size!==f.size);
-  let n=0;
+  let n=0,ok=0;const bad=[];
   for(const f of todo){
    b.textContent=`Descargando ${++n}/${todo.length}…`;
-   const res=await fetch(f.path.split('/').map(encodeURIComponent).join('/'));
-   if(!res.ok)continue;const blob=await res.blob();if(blob.type==='text/html')continue;
-   const p=f.path.split('/'),m=await meta(blob,p[p.length-1]);if(!m.album&&p.length>2)m.album=p[p.length-2];
-   const rec={...m,blob,name:f.path,size:f.size,remote:1},h=have.get(f.path);if(h)rec.id=h.id;
-   await put('tracks',rec);
+   try{
+    const u=f.path.split('/').map(encodeURIComponent).join('/'),h=have.get(f.path);
+    let res=await fetch(u,{cache:'no-store'});
+    if(!res.ok)res=await fetch(`https://raw.githubusercontent.com/${o}/${r}/HEAD/${u}`);
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const blob=await res.blob(),p=f.path.split('/'),m=await meta(blob,p[p.length-1]);
+    if(!m.album&&p.length>2)m.album=p[p.length-2];
+    const rec={...m,blob,name:f.path,size:f.size,remote:1};if(h)rec.id=h.id;
+    if(await put('tracks',rec)==null)throw new Error('no se pudo guardar');
+    ok++;
+   }catch(e){bad.push(f.path+' → '+(e.message||e))}
   }
   for(const t of tracks.filter(t=>t.remote&&!rem.some(f=>f.path===t.name)))await del('tracks',t.id);
-  tracks=await all('tracks');refresh();b.textContent=todo.length?'Listo, '+todo.length+' nuevas':'Todo al día';
+  tracks=await all('tracks');refresh();b.textContent=bad.length?ok+' nuevas, '+bad.length+' con error':ok?'Listo, '+ok+(ok>1?' nuevas':' nueva'):'Todo al día';
+  if(bad.length)alert('No se pudo descargar:\n'+bad.slice(0,3).join('\n'));
  }catch(e){b.textContent='Sin conexión o repositorio no encontrado'}
  setTimeout(()=>b.textContent=lab,3000)}
 
