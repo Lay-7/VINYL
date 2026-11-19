@@ -185,7 +185,7 @@ async function paint(t){
  let c=null;if(u){c=t.color||(t.color=await colorOf(u))}
  const L=$('#label'),as=aset['t:'+t.id]||aset[t.album||'Sin álbum']||{},D=$('.disc');D.style.background=discBg(norm(as),u,.25,'cqw');
  const cov=as.mode==='cover'&&!!u;L.classList.toggle('cov',cov);L.style.backgroundImage=cov?`url(${u})`:'';
- if(as.video){cv.innerHTML='';cv.append(vid(as.video))}
+ if(as.video){cv.innerHTML='';cv.append(vid(as.video,u))}
  if(as.lcolor)c=[1,3,5].map(i=>parseInt(as.lcolor.slice(i,i+2),16));
  if(c){L.style.setProperty('--lc',`rgb(${c[0]},${c[1]},${c[2]})`);L.style.setProperty('--lx',(c[0]*.299+c[1]*.587+c[2]*.114)>150?'#1a1a1a':'#fff')}
  else{L.style.removeProperty('--lc');L.style.removeProperty('--lx')}
@@ -211,8 +211,15 @@ function discBg(s,u,k,U){
  return [rim,gaps,sheen,g,b].join(',')}
 const aset={};let det=null;
 const vurl=b=>b._u||(b._u=URL.createObjectURL(b));
-function vid(b){const v=document.createElement('video');v.src=vurl(b);v.muted=v.loop=v.autoplay=v.playsInline=true;v.setAttribute('muted','');v.setAttribute('playsinline','');v.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:inherit';v.play().catch(()=>{});return v}
-const poster=b=>b._p?Promise.resolve(b._p):new Promise(r=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.src=vurl(b);v.onloadeddata=()=>{v.currentTime=.1};v.onseeked=()=>{const c=document.createElement('canvas');c.width=c.height=512;const m=Math.min(v.videoWidth,v.videoHeight);c.getContext('2d').drawImage(v,(v.videoWidth-m)/2,(v.videoHeight-m)/2,m,m,0,0,512,512);c.toBlob(bl=>r(b._p=bl?URL.createObjectURL(bl):''),'image/jpeg',.85)};v.onerror=()=>r('')});
+function vid(b,p){const v=document.createElement('video');if(p)v.poster=p;v.src=vurl(b);v.muted=v.loop=v.autoplay=v.playsInline=true;v.setAttribute('muted','');v.setAttribute('playsinline','');v.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:inherit';v.play().catch(()=>{});return v}
+const poster=b=>b._p?Promise.resolve(b._p):new Promise(r=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.src=vurl(b);v.onloadeddata=()=>{v.currentTime=.1};v.onseeked=()=>{const c=document.createElement('canvas');c.width=c.height=512;const m=Math.min(v.videoWidth,v.videoHeight);c.getContext('2d').drawImage(v,(v.videoWidth-m)/2,(v.videoHeight-m)/2,m,m,0,0,512,512);c.toBlob(bl=>{b._pb=bl;r(b._p=bl?URL.createObjectURL(bl):'')},'image/jpeg',.85)};v.onerror=()=>r('');setTimeout(()=>r(''),4000)});
+const posterBlob=async b=>{await poster(b);return b._pb||null};
+async function fillCovers(){let ch=false;
+ for(const k in aset){const v=aset[k].video;if(!v||k.startsWith('t:'))continue;
+  const ts=tracks.filter(t=>(t.album||'Sin álbum')===k&&!t.cover);if(!ts.length)continue;
+  const pb=await posterBlob(v);if(!pb)continue;
+  for(const t of ts){t.cover=pb;delete t.color;await put('tracks',t)}ch=true}
+ if(ch){refresh();const t=byId(queue[qi]);if(t)paint(t)}}
 
 function openDet(type,key){det={type,key};go('dv');renderDetail()}
 function renderDetail(){
@@ -222,7 +229,7 @@ function renderDetail(){
  if((isA&&!ts.length)||(!isA&&!l)){go('home');return}
  const h=$('#dvb');h.innerHTML='<button class="chip" id="db"></button><div class="dh"><div class="dc"></div><div class="di"><h1></h1><span></span><div class="cv"><button class="b pri" id="dp" style="display:flex;gap:6px;align-items:center"></button></div></div></div><div id="dl"></div>';
  h.querySelector('#db').innerHTML=ic('back',16)+'Inicio';h.querySelector('#db').onclick=()=>go('home');
- const dc=h.querySelector('.dc');dc.append(card(ts,'','',null).firstChild);const vb=isA&&(aset[det.key]||{}).video;if(vb){const cc=dc.firstChild;cc.style.backgroundImage='';cc.innerHTML='';cc.append(vid(vb))}
+ const dc=h.querySelector('.dc');dc.append(card(ts,'','',null).firstChild);const vb=isA&&(aset[det.key]||{}).video;if(vb){const cc=dc.firstChild,f=ts.find(t=>t.cover),fu=f?cu(f):'';cc.className='cc';cc.innerHTML='';cc.style.backgroundImage=fu?`url(${fu})`:'';cc.append(vid(vb,fu))}
  h.querySelector('h1').textContent=isA?det.key:l.name;h.querySelector('.di>span').textContent=cnt(ts.length);
  const dp=h.querySelector('#dp');dp.innerHTML=ic('play',18)+'Reproducir';dp.onclick=()=>ts.length&&start(ts.map(t=>t.id),0);
  if(isA){const b=document.createElement('button');b.className='b';b.textContent='Personalizar vinilo';b.onclick=()=>custom(det.key);h.querySelector('.cv').append(b);const e=document.createElement('button');e.className='b';e.textContent='Editar disco';e.onclick=()=>editAlbum(det.key);h.querySelector('.cv').append(e)}else{const b=document.createElement('button');b.className='b';b.textContent='Agregar canciones';b.onclick=()=>addTo(l);h.querySelector('.cv').append(b)}
@@ -267,7 +274,7 @@ function editAlbum(key){
    if(nc!==undefined){if(urls['c'+t.id])URL.revokeObjectURL(urls['c'+t.id]);delete urls['c'+t.id];t.cover=nc;delete t.color}
    await put('tracks',t)}
   if(nk!==key){const o=aset[key];if(o){aset[nk]={...o,name:nk};await put('albums',aset[nk]);await del('albums',key);delete aset[key]}if(det&&det.type==='album'&&det.key===key)det.key=nk}
-  if(nv!==undefined){const r=aset[nk]||{name:nk};if(nv)r.video=nv;else delete r.video;aset[nk]=r;await put('albums',r)}
+  if(nv!==undefined){const r=aset[nk]||{name:nk};if(nv)r.video=nv;else delete r.video;aset[nk]=r;await put('albums',r);await fillCovers()}
   d.close();refresh();const t=byId(queue[qi]);if(t)paint(t)};
  d.showModal()}
 function custom(key,tr){
@@ -320,7 +327,7 @@ async function syncGH(){
    }catch(e){bad.push(f.path+' → '+(e.message||e))}
   }
   for(const t of tracks.filter(t=>t.remote&&!rem.some(f=>f.path===t.name)))await del('tracks',t.id);
-  tracks=await all('tracks');refresh();b.textContent=bad.length?ok+' nuevas, '+bad.length+' con error':ok?'Listo, '+ok+(ok>1?' nuevas':' nueva'):'Todo al día';
+  tracks=await all('tracks');await fillCovers();refresh();b.textContent=bad.length?ok+' nuevas, '+bad.length+' con error':ok?'Listo, '+ok+(ok>1?' nuevas':' nueva'):'Todo al día';
   if(bad.length)alert('No se pudo descargar:\n'+bad.slice(0,3).join('\n'));
  }catch(e){b.textContent='Sin conexión o repositorio no encontrado'}
  setTimeout(()=>b.textContent=lab,3000)}
@@ -452,7 +459,7 @@ $('#file').onchange=async e=>{
 (async()=>{
  try{db=await open();tracks=await all('tracks');lists=await all('lists');(await all('albums')).forEach(a=>aset[a.name]=a);if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}
  catch(e){$('#homebody').innerHTML='<div class="empty">Tu navegador no permite almacenamiento local.</div>'}
- $('#cover').innerHTML=ic('note',72);go('home');refresh();
+ $('#cover').innerHTML=ic('note',72);go('home');refresh();fillCovers();
 })();
 </script>
 <script>if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{})</script>
