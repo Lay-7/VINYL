@@ -169,6 +169,8 @@ dialog textarea{display:block;width:100%;margin-top:3px;padding:10px;border-radi
 .stage{aspect-ratio:.75;width:min(100%,calc((100vh - var(--rs))*.75));width:min(100%,calc((100dvh - var(--rs))*.75))}
 .lyr{height:22cqw}
 }
+dialog{width:min(92vw,400px)}
+.pvd{width:140px}
 </style></head>
 <body>
 <div class="home" id="home">
@@ -253,7 +255,7 @@ async function paint(t){
  const cv=$('#cover'),u=cu(t);
  cv.style.backgroundImage=u?`url(${u})`:'';cv.innerHTML=u?'':ic('note',72);
  let c=null;if(u){c=t.color||(t.color=await colorOf(u))}
- const L=$('#label'),as=aset['t:'+t.id]||aset[t.album||'Sin álbum']||{},D=$('.disc');D.style.background=discBg(norm(as),u,.25,'cqw');
+ const L=$('#label'),base=aset[t.album||'Sin álbum']||{},ov=aset['t:'+t.id],as=Object.assign({},ov||base,{video:base.video||(ov&&ov.video)}),D=$('.disc');D.style.background=discBg(norm(as),u,.25,'cqw');
  const cov=as.mode==='cover'&&!!u;L.classList.toggle('cov',cov);L.style.backgroundImage=cov?`url(${u})`:'';
  if(as.video){cv.innerHTML='';cv.append(vid(as.video,u))}
  if(as.lcolor)c=[1,3,5].map(i=>parseInt(as.lcolor.slice(i,i+2),16));
@@ -294,22 +296,37 @@ const setSh=v=>{shuffle=v;$('#shuf').classList.toggle('on',v)};
 const go=v=>{$('#home').hidden=v!=='home';$('#dv').hidden=v!=='dv';$('#pv').hidden=v!=='pv';if(v!=='dv'){document.documentElement.style.background='';document.body.classList.remove('tint');$('#dv').removeAttribute('style')}oq(false);window.scrollTo(0,0);renderMini()};
 let orig=[],removed=new Set();
 const COLS=['#1a1a1a','#a3181d','#16408a','#1b6e3f','#55238a','#ececec','#b8912c'];
-const STY=[['classic','Clásico negro'],['solid','Color sólido'],['marble','Marmoleado'],['splat','Salpicado'],['split','Dos colores'],['pic','Picture disc']];
-const norm=s=>{s=Object.assign({style:'classic',c1:'#a3181d',c2:'#f2f2f2',lcolor:null,mode:'cover'},s);if(s.vinyl&&!s.migr){s.style='solid';s.c1=COLS[s.vinyl];s.migr=1}return s};
+const STY=[['classic','Negro'],['clear','Translúcido'],['smoke','Humo'],['splat','Salpicado'],['burst','Explosión'],['marble','Marmoleado'],['split','Dos colores'],['pic','Picture disc']];
+const PRESETS=[['Negro','classic','#1a1a1a','#ffffff'],['Rosa explosión','burst','#f3a1b6','#ffffff'],['Azul humo','smoke','#1f7a8c','#06202a'],['Rojo salpicado','splat','#c23b22','#f6d6b8'],['Morado translúcido','clear','#8f6fd6','#ffffff'],['Naranja humo','smoke','#e8892c','#5b2a06'],['Gris translúcido','clear','#b9b4bd','#ffffff'],['Verde marmoleado','marble','#2f8f6b','#d8f3e6']];
+const norm=s=>{s=Object.assign({style:'classic',c1:'#a3181d',c2:'#f2f2f2',lcolor:null,mode:'cover'},s);if(s.vinyl&&!s.migr){s.style='solid';s.c1=COLS[s.vinyl];s.migr=1}if(s.style==='solid')s.style='clear';return s};
 const mixC=(h,t,a)=>{const m=i=>Math.round(parseInt(h.slice(i,i+2),16)*(1-a)+t*a);return `rgb(${m(1)},${m(3)},${m(5)})`};
+const hsh=t=>{let h=2166136261;for(const c of t){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
+const rnd=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const ha=n=>Math.max(0,Math.min(255,n|0)).toString(16).padStart(2,'0');
 function discBg(s,u,k,U){
  const g=`repeating-radial-gradient(circle,#0000 0 ${k}${U},#0003 ${k*1.1}${U} ${k*1.9}${U})`;
  const rim='radial-gradient(circle closest-side,#0000 0 94%,#fff4 96%,#0008 98.5%,#000b 100%)';
  const gaps='radial-gradient(circle closest-side,#0000 0 40%,#0007 40.4% 41%,#0000 41.5% 58%,#0006 58.4% 59%,#0000 59.5% 74%,#0006 74.4% 75%,#0000 75.5% 88%,#0006 88.4% 89%,#0000 89.5%)';
- const bands='radial-gradient(circle closest-side,#fff0 0 41%,#fff2 41% 59%,#fff0 59% 75%,#fff2 75% 89%,#fff0 89%)';
+ const bands='radial-gradient(circle closest-side,#fff0 0 41%,#fff1 41% 59%,#fff0 59% 75%,#fff1 75% 89%,#fff0 89%)';
  const sheen='conic-gradient(from 25deg,#0000 0,#fff5 7%,#0000 17%,#0000 50%,#fff4 57%,#0000 67%)';
- let b='radial-gradient(circle closest-side,#2c2c2c,#0d0d0d 70%,#1a1a1a)';
- if(s.style==='solid')b=`radial-gradient(circle closest-side,${mixC(s.c1,255,.3)},${s.c1} 60%,${mixC(s.c1,0,.25)})`;
- else if(s.style==='marble')b=`radial-gradient(ellipse at 28% 30%,${s.c2} 0,#0000 42%),radial-gradient(ellipse at 72% 68%,${s.c2} 0,#0000 38%),radial-gradient(ellipse at 60% 20%,${s.c2}99 0,#0000 30%),${s.c1}`;
- else if(s.style==='splat'){const P=[[20,25,6],[70,18,4],[45,50,7],[80,60,5],[28,75,5],[60,85,4],[12,52,3],[88,35,3],[52,12,3]];b=P.map(([x,y,r])=>`radial-gradient(circle at ${x}% ${y}%,${s.c2} 0 ${r}%,#0000 ${r+.5}%)`).join(',')+','+s.c1}
- else if(s.style==='split')b=`conic-gradient(from 90deg,${s.c1} 0 50%,${s.c2} 50% 100%)`;
+ const c1=s.c1,c2=s.c2,R=rnd(hsh(s.style+c1+c2)),top=[];let b='#111';
+ if(s.style==='classic')b='radial-gradient(circle closest-side,#2c2c2c,#0d0d0d 70%,#1a1a1a)';
+ else if(s.style==='clear')b=`radial-gradient(circle closest-side,${c1}a0,${c1}d4 60%,${c1}f0)`;
+ else if(s.style==='smoke'){
+  for(let i=0;i<16;i++){const x=R()*100,y=R()*100,w=18+R()*40,h=7+R()*20;top.push(`radial-gradient(ellipse ${w}% ${h}% at ${x}% ${y}%,${c2}${ha(110+R()*130)},#0000 100%)`)}
+  for(let i=0;i<5;i++){const x=R()*100,y=R()*100,w=10+R()*20;top.push(`radial-gradient(ellipse ${w}% ${w*.6}% at ${x}% ${y}%,${mixC(c1,255,.45)},#0000 100%)`)}
+  b=`radial-gradient(circle closest-side,${mixC(c1,255,.1)},${c1} 70%,${mixC(c1,0,.2)})`}
+ else if(s.style==='marble')b=`radial-gradient(ellipse at 28% 30%,${c2} 0,#0000 42%),radial-gradient(ellipse at 72% 68%,${c2} 0,#0000 38%),radial-gradient(ellipse at 60% 20%,${c2}99 0,#0000 30%),${c1}`;
+ else if(s.style==='splat'){for(let i=0;i<46;i++){const x=R()*100,y=R()*100,r=.3+(i<6?R()*3.2:R()*1.6);top.push(`radial-gradient(circle at ${x}% ${y}%,${c2} 0 ${r}%,#0000 ${r+.3}%)`)}b=c1}
+ else if(s.style==='burst'){
+  top.push(`radial-gradient(circle closest-side,${c1} 0 30%,#0000 56%)`);
+  const ray=(g0,g1,w0,w1,al0,al1)=>{let a=0;const st=[];while(a<360){const gap=g0+R()*g1,w=w0+R()*w1;st.push(`#0000 ${a.toFixed(2)}deg ${(a+gap).toFixed(2)}deg`,`${c2}${ha(al0+R()*al1)} ${(a+gap).toFixed(2)}deg ${(a+gap+w).toFixed(2)}deg`);a+=gap+w}return `conic-gradient(${st.join(',')})`};
+  top.push(ray(6,14,1,4.5,170,85),ray(2,8,.3,.9,80,80));
+  for(let i=0;i<26;i++){const an=R()*6.283,r=40+R()*52,x=50+Math.cos(an)*r/2,y=50+Math.sin(an)*r/2,rr=.4+R()*1.6;top.push(`radial-gradient(circle at ${x}% ${y}%,${c2} 0 ${rr}%,#0000 ${rr+.4}%)`)}
+  b=c1}
+ else if(s.style==='split')b=`conic-gradient(from 90deg,${c1} 0 50%,${c2} 50% 100%)`;
  else if(s.style==='pic'&&u)b=`url(${u}) center/cover`;
- return [rim,sheen,gaps,bands,g,b].join(',')}
+ return [rim,sheen,gaps,bands,g,...top,b].join(',')}
 const aset={};let det=null;
 const vurl=b=>b._u||(b._u=URL.createObjectURL(b));
 function vid(b,p){const v=document.createElement('video');if(p)v.poster=p;v.src=vurl(b);v.muted=v.loop=v.autoplay=v.playsInline=true;v.setAttribute('muted','');v.setAttribute('playsinline','');v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit';v.addEventListener('playing',()=>setTimeout(()=>grab(v,b),600),{once:true});v.play().catch(()=>{});return v}
@@ -397,23 +414,24 @@ function editAlbum(key){
  d.showModal()}
 function custom(key,tr){
  const d=$('#dlg'),ts=tr?[tr]:tracks.filter(t=>(t.album||'Sin álbum')===key),s=norm(aset[key]||(tr&&aset[tr.album||'Sin álbum'])),ci='style="height:44px;padding:2px"';
- d.innerHTML=`<h3>${tr?'Vinilo de esta canción':'Personalizar vinilo'}</h3><div class="pvd"><i></i></div><label>Estilo del disco</label><div class="cv" id="st" style="flex-wrap:wrap"></div><div id="cc"><label>Color principal<input type="color" id="c1" ${ci}></label><label id="l2">Color secundario<input type="color" id="c2" ${ci}></label></div><label>Etiqueta central</label><div class="cv"><button class="b" data-m="text">Texto</button><button class="b" data-m="cover">Portada</button></div><label>Color de la etiqueta<input type="color" id="c4" ${ci}></label><button class="b" id="c5">Etiqueta automática</button>${tr?'<button class="b" id="c6">Usar el del disco</button>':''}<div class="act"><button class="b" id="c8">Cancelar</button><button class="b pri" id="c9">Guardar</button></div>`;
+ d.innerHTML=`<h3>${tr?'Vinilo de esta canción':'Personalizar vinilo'}</h3><div class="pvd"><i></i></div><label>Diseños</label><div class="cv" id="ps" style="flex-wrap:wrap"></div><label>Estilo del disco</label><div class="cv" id="st" style="flex-wrap:wrap"></div><div id="cc"><label>Color principal<input type="color" id="c1" ${ci}></label><label id="l2">Color secundario<input type="color" id="c2" ${ci}></label></div><label>Etiqueta central</label><div class="cv"><button class="b" data-m="text">Texto</button><button class="b" data-m="cover">Portada</button></div><label>Color de la etiqueta<input type="color" id="c4" ${ci}></label><button class="b" id="c5">Etiqueta automática</button>${tr?'<button class="b" id="c6">Usar el del disco</button>':''}<div class="act"><button class="b" id="c8">Cancelar</button><button class="b pri" id="c9">Guardar</button></div>`;
  const q=x=>d.querySelector(x),pv=q('.pvd'),auto=(ts.find(t=>t.color)||{}).color,cvr=ts.find(t=>covB(t));
  const draw=()=>{pv.style.background=discBg(s,cvr?cu(cvr):'',.9,'px');
   const i=pv.firstChild;i.style.backgroundImage=s.mode==='cover'&&cvr?`url(${cu(cvr)})`:'';
   i.style.backgroundColor=s.lcolor||(auto?`rgb(${auto.slice(0,3)})`:'#888');
   d.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('pri',b.dataset.m===s.mode));
   d.querySelectorAll('[data-k]').forEach(b=>b.classList.toggle('pri',b.dataset.k===s.style));
-  d.querySelectorAll('[data-k] i').forEach(i=>i.style.background=discBg({...s,style:i.parentNode.dataset.k},cvr?cu(cvr):'',.5,'px'));
-  q('#cc').hidden=['classic','pic'].includes(s.style);q('#l2').hidden=['solid'].includes(s.style)};
+  d.querySelectorAll('[data-k] i').forEach(i=>i.style.background=discBg({...s,style:i.parentNode.dataset.k},cvr?cu(cvr):'',2,'px'));
+  q('#cc').hidden=['classic','pic'].includes(s.style);q('#l2').hidden=['clear'].includes(s.style)};
  STY.forEach(([k,n])=>{const b=document.createElement('button');b.className='sty';b.dataset.k=k;b.innerHTML='<i></i><span></span>';b.lastChild.textContent=n;b.onclick=()=>{s.style=k;draw()};q('#st').append(b)});
+ PRESETS.forEach(([n,k,a,c])=>{const bt=document.createElement('button');bt.className='sty';bt.innerHTML='<i></i><span></span>';bt.lastChild.textContent=n;bt.firstChild.style.background=discBg({style:k,c1:a,c2:c},'',2,'px');bt.onclick=()=>{s.style=k;s.c1=a;s.c2=c;q('#c1').value=a;q('#c2').value=c;draw()};q('#ps').append(bt)});
  d.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{s.mode=b.dataset.m;draw()});
  q('#c1').value=s.c1;q('#c1').oninput=e=>{s.c1=e.target.value;draw()};
  q('#c2').value=s.c2;q('#c2').oninput=e=>{s.c2=e.target.value;draw()};
  q('#c4').value=s.lcolor||'#c8a27a';q('#c4').oninput=e=>{s.lcolor=e.target.value;draw()};
  q('#c5').onclick=()=>{s.lcolor=null;draw()};
  if(q('#c6'))q('#c6').onclick=async()=>{await del('albums',key);delete aset[key];d.close();const t=byId(queue[qi]);if(t)paint(t)};q('#c8').onclick=()=>d.close();
- q('#c9').onclick=async()=>{aset[key]={name:key,...s};await put('albums',aset[key]);d.close();const t=byId(queue[qi]);if(t)paint(t);renderDetail()};
+ q('#c9').onclick=async()=>{const r=aset[key]||{name:key};Object.assign(r,{style:s.style,c1:s.c1,c2:s.c2,lcolor:s.lcolor,mode:s.mode});aset[key]=r;if(await put('albums',r)==null)alert('No se pudo guardar: '+(window._ierr||'error'));d.close();const t=byId(queue[qi]);if(t)paint(t);renderDetail()};
  draw();d.showModal()}
 async function tint(ts){
  const c0=ts.find(t=>covB(t));if(!c0)return;
